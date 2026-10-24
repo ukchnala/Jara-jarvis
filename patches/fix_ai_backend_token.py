@@ -23,6 +23,10 @@ s = s.replace('''    fun saveEndpoint(context: Context, value: String) {
     fun isConfigured(context: Context) = endpoint(context).startsWith("https://") && clientToken(context).length >= 24''')
 s = s.replace('.post(payload.toString().toRequestBody(jsonType)).header("Accept", "application/json").build()',
               '.post(payload.toString().toRequestBody(jsonType)).header("Accept", "application/json")\n                    .header("Authorization", "Bearer " + clientToken(context)).build()')
+# Normalize duplicate lines because earlier builds may already have applied part of this patch.
+lines = s.splitlines()
+seen = set()
+s = "\\n".join(line for line in lines if not (line.strip() == 'private const val TOKEN_KEY = "client_token"' and line.strip() in seen) and not (seen.add(line.strip()) and False)) + "\\n"
 if "TOKEN_KEY" not in s or 'header("Authorization"' not in s:
     raise RuntimeError("Failed to patch JarvisAiBackend.kt")
 client.write_text(s)
@@ -53,6 +57,17 @@ s = s.replace('''                    OutlinedTextField(value = endpointDraft, on
                         modifier = Modifier.fillMaxWidth())''')
 s = s.replace('onSaveAiBackendEndpoint(endpointDraft); showAiBackendDialog = false',
               'onSaveAiBackendEndpoint(endpointDraft, clientTokenDraft); clientTokenDraft = ""; showAiBackendDialog = false')
+# Keep only one declaration of the dialog token state.
+lines = s.splitlines()
+seen_decl = False
+out = []
+for line in lines:
+    if "var clientTokenDraft by remember" in line:
+        if seen_decl:
+            continue
+        seen_decl = True
+    out.append(line)
+s = "\\n".join(out) + "\\n"
 if "clientTokenDraft" not in s or "onSaveAiBackendEndpoint(endpointDraft, clientTokenDraft)" not in s:
     raise RuntimeError("Failed to patch VoiceChatScreen token input")
 screen.write_text(s)
