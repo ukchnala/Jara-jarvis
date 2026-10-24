@@ -246,4 +246,74 @@ Keeps OPENAI_API_KEY on the server, not in the APK. Requires Node.js 20+ and an 
 Set private environment variable OPENAI_API_KEY on the host; optional OPENAI_MODEL defaults to gpt-4.1-mini. Start command: npm start. Health check: /health. Android endpoint: POST /v1/jarvis.
 For local development: npm install; OPENAI_API_KEY=your_key_here npm start. Never commit a real key. Before public use, add authentication and rate limiting, and set API spend limits. Once deployed, paste the base HTTPS URL into the cloud icon in JARVIS Voice/Chat settings. Do not paste the API key into the app.
 """)
+
+# Require a private client token so a public endpoint cannot freely spend the owner's API quota.
+ai_client = root / "app/src/main/java/com/example/util/JarvisAiBackend.kt"
+t = ai_client.read_text()
+t = t.replace('    private const val URL_KEY = "endpoint_url"\n', '    private const val URL_KEY = "endpoint_url"\n    private const val TOKEN_KEY = "client_token"\n')
+t = t.replace('''    fun saveEndpoint(context: Context, value: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(URL_KEY, value.trim().trimEnd('/')).apply()
+    }
+    fun isConfigured(context: Context) = endpoint(context).startsWith("https://")''', '''    fun clientToken(context: Context): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getString(TOKEN_KEY, "")?.trim().orEmpty()
+    fun saveEndpoint(context: Context, value: String, token: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(URL_KEY, value.trim().trimEnd('/')).putString(TOKEN_KEY, token.trim()).apply()
+    }
+    fun isConfigured(context: Context) = endpoint(context).startsWith("https://") && clientToken(context).length >= 24''')
+t = t.replace('.post(payload.toString().toRequestBody(jsonType)).header("Accept", "application/json").build()',
+              '.post(payload.toString().toRequestBody(jsonType)).header("Accept", "application/json")\n                    .header("Authorization", "Bearer " + clientToken(context)).build()')
+ai_client.write_text(t)
+
+vm = root / "app/src/main/java/com/example/viewmodel/JarvisViewModel.kt"
+t = vm.read_text()
+t = t.replace('''    fun saveAiBackendEndpoint(value: String) {
+        JarvisAiBackend.saveEndpoint(context, value)''', '''    fun saveAiBackendEndpoint(value: String, token: String) {
+        JarvisAiBackend.saveEndpoint(context, value, token)''')
+t = t.replace('AI_BACKEND: HTTPS endpoint saved', 'AI_BACKEND: HTTPS endpoint and client token saved')
+t = t.replace('AI_BACKEND: endpoint cleared or invalid', 'AI_BACKEND: endpoint/token missing or invalid')
+vm.write_text(t)
+
+vc = root / "app/src/main/java/com/example/ui/screens/VoiceChatScreen.kt"
+t = vc.read_text()
+t = t.replace('    onSaveAiBackendEndpoint: (String) -> Unit', '    onSaveAiBackendEndpoint: (String, String) -> Unit')
+t = t.replace('    var endpointDraft by remember(aiBackendEndpoint) { mutableStateOf(aiBackendEndpoint) }',
+              '    var endpointDraft by remember(aiBackendEndpoint) { mutableStateOf(aiBackendEndpoint) }\n    var clientTokenDraft by remember { mutableStateOf("") }')
+t = t.replace('''                    OutlinedTextField(value = endpointDraft, onValueChange = { endpointDraft = it },
+                        label = { Text("https://your-backend.example.com") }, singleLine = true, modifier = Modifier.fillMaxWidth())''', '''                    OutlinedTextField(value = endpointDraft, onValueChange = { endpointDraft = it },
+                        label = { Text("https://your-backend.example.com") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = clientTokenDraft, onValueChange = { clientTokenDraft = it },
+                        label = { Text("Private client token (24+ characters)") }, singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth())''')
+t = t.replace('onSaveAiBackendEndpoint(endpointDraft); showAiBackendDialog = false',
+              'onSaveAiBackendEndpoint(endpointDraft, clientTokenDraft); clientTokenDraft = ""; showAiBackendDialog = false')
+vc.write_text(t)
+
+container = root / "app/src/main/java/com/example/ui/screens/JarvisMainContainer.kt"
+t = container.read_text().replace('onSaveAiBackendEndpoint = { viewModel.saveAiBackendEndpoint(it) }',
+                                  'onSaveAiBackendEndpoint = { endpoint, token -> viewModel.saveAiBackendEndpoint(endpoint, token) }')
+container.write_text(t)
+
+server = root / "backend/server.js"
+t = server.read_text()
+t = t.replace('import express from "express";', 'import express from "express";\nimport { timingSafeEqual } from "node:crypto";')
+t = t.replace('const API_KEY = process.env.OPENAI_API_KEY;', 'const API_KEY = process.env.OPENAI_API_KEY;\nconst CLIENT_TOKEN = process.env.JARVIS_CLIENT_TOKEN;')
+t = t.replace('''  if (!API_KEY) return res.status(503).json({ error: "Backend owner must configure OPENAI_API_KEY." });''', '''  if (!API_KEY || !CLIENT_TOKEN) return res.status(503).json({ error: "Backend owner must configure OPENAI_API_KEY and JARVIS_CLIENT_TOKEN." });
+  const supplied = String(req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+  const suppliedBytes = Buffer.from(supplied);
+  const expectedBytes = Buffer.from(CLIENT_TOKEN);
+  if (suppliedBytes.length !== expectedBytes.length || !timingSafeEqual(suppliedBytes, expectedBytes))
+    return res.status(401).json({ error: "Unauthorized client." });''')
+server.write_text(t)
+
+readme = backend / "README.md"
+readme.write_text("""# JARVIS AI backend
+Keeps OPENAI_API_KEY on the server, not in the APK. Requires Node.js 20+ and an HTTPS host.
+Set private environment variables OPENAI_API_KEY and JARVIS_CLIENT_TOKEN on the host. Make JARVIS_CLIENT_TOKEN a long random secret of at least 24 characters, then enter the same token in the Android app's AI Backend settings. Optional OPENAI_MODEL defaults to gpt-4.1-mini. Start command: npm start. Health check: /health. Android endpoint: POST /v1/jarvis.
+For local development: npm install; OPENAI_API_KEY=your_key_here JARVIS_CLIENT_TOKEN=your-long-random-token npm start. Never commit real secrets. Set API spend limits. Once deployed, paste the base HTTPS URL and client token into the cloud icon in JARVIS Voice/Chat settings. Do not paste the OpenAI API key into the app.
+""")
+
 print("Added AI backend client, action planner integration, endpoint settings UI and Node proxy.")
