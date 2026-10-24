@@ -113,7 +113,17 @@ if "waitingForWakeGreeting" not in s:
         start = s.find("    fun onWakeWordActivated() {")
         end = s.find("    fun triggerWakeWordTest()", start)
         if start < 0 or end < 0: raise RuntimeError("Could not find wake handler in ViewModel")
-        s = s[:start] + new + "\n\n" + s[end:]
+        replacement = """    fun onWakeWordActivated() {
+        _activeTab.value = JarvisTab.VOICE_CHAT
+        val greeting = "Haan sir, main active hoon! Boliye, kya kaam hai?"
+        _messages.value = _messages.value + ChatMessage(text = greeting, isJarvis = true, actionSummary = "Wake word detected")
+        addSystemLog("WAKE_WORD: Jarvis detected; voice chat activated")
+        waitingForWakeGreeting = true
+        JarvisOverlayService.show(context)
+        voiceManager?.speak(greeting, "JARVIS_WAKE_ACK")
+    }
+"""
+        s = s[:start] + replacement + "\n" + s[end:]
     old = """            // Speak reply in natural Hindi, then restore the wake-word listener.
             speak(result.spokenResponse)
             if (isVoice && _isBackgroundListeningEnabled.value) {
