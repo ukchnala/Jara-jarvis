@@ -376,7 +376,7 @@ if "requestOverlayPermissionOnce" not in s:
     }
 
 """
-    if anchor not in s: raise Error("MainActivity permission anchor missing")
+    if anchor not in s: raise RuntimeError("MainActivity permission anchor missing")
     s = s.replace(anchor, method + anchor, 1)
 main.write_text(s)
 print("Applied global green edge overlay, speech-sequenced command listening, conversational TTS tuning and saved recent chat history.")
@@ -468,3 +468,16 @@ if "JARVIS_LOCAL_FACT_MEMORY" not in s:
     if marker not in s: raise RuntimeError("Could not find intelligence insertion point")
     s = s.replace(marker, block + marker, 1)
     intel.write_text(s)
+
+
+# Put the deprecation suppression on the local declaration for Kotlin compiler compatibility.
+overlay = root / "app/src/main/java/com/example/service/JarvisOverlayService.kt"
+if overlay.exists():
+    os = overlay.read_text()
+    os = os.replace("""        val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                   else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+""", """        @Suppress("DEPRECATION")
+        val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                   else WindowManager.LayoutParams.TYPE_PHONE
+""")
+    overlay.write_text(os)
