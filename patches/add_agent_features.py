@@ -153,7 +153,10 @@ replacement = '''        viewModelScope.launch {
             }
 
             val plannedSteps = JarvisTaskPlanner.split(input)
-            if (plannedSteps.size > 1) {
+            val hasExecutablePlan = plannedSteps.size > 1 && plannedSteps.any {
+                JarvisIntelligence.interpret(it, context, _phoneControlEnabled.value).action !is JarvisAction.Conversational
+            }
+            if (hasExecutablePlan) {
                 val completed = mutableListOf<String>()
                 val unsupported = mutableListOf<String>()
                 for ((index, step) in plannedSteps.withIndex()) {
