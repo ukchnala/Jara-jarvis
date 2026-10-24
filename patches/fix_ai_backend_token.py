@@ -26,7 +26,7 @@ s = s.replace('.post(payload.toString().toRequestBody(jsonType)).header("Accept"
 # Normalize duplicate lines because earlier builds may already have applied part of this patch.
 lines = s.splitlines()
 seen = set()
-s = "\n".join(line for line in lines if not (line.strip() == 'private const val TOKEN_KEY = "client_token"' and line.strip() in seen) and not (seen.add(line.strip()) and False)) + "\\n"
+s = "\n".join(line for line in lines if not (line.strip() == 'private const val TOKEN_KEY = "client_token"' and line.strip() in seen) and not (seen.add(line.strip()) and False)) + "\n"
 if "TOKEN_KEY" not in s or 'header("Authorization"' not in s:
     raise RuntimeError("Failed to patch JarvisAiBackend.kt")
 client.write_text(s)
@@ -67,7 +67,7 @@ for line in lines:
             continue
         seen_decl = True
     out.append(line)
-s = "\n".join(out) + "\\n"
+s = "\n".join(out) + "\n"
 if "clientTokenDraft" not in s or "onSaveAiBackendEndpoint(endpointDraft, clientTokenDraft)" not in s:
     raise RuntimeError("Failed to patch VoiceChatScreen token input")
 screen.write_text(s)
