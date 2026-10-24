@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: jarvis-ai-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: JARVIS_CLIENT_TOKEN
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
