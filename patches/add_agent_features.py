@@ -115,14 +115,14 @@ if 'android.permission.RECEIVE_BOOT_COMPLETED' not in m:
     m = m.replace('    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
                   '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />')
 if 'JarvisProactiveReceiver' not in m:
-    m = m.replace('        <service\n            android:name=".service.JarvisOverlayService"',
-                  '        <receiver android:name=".service.JarvisProactiveReceiver" android:enabled="true" android:exported="false">\n'
-                  '            <intent-filter><action android:name="com.example.JARVIS_CHECK_IN" /></intent-filter>\n'
-                  '        </receiver>\n'
-                  '        <receiver android:name=".service.JarvisProactiveReceiver" android:enabled="true" android:exported="true">\n'
-                  '            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>\n'
-                  '        </receiver>\n'
-                  '        <service\n            android:name=".service.JarvisOverlayService')
+    m = m.replace('        <service\\n            android:name=".service.JarvisOverlayService"',
+                  '        <receiver android:name=".service.JarvisProactiveReceiver" android:enabled="true" android:exported="true">\\n'
+                  '            <intent-filter>\\n'
+                  '                <action android:name="com.example.JARVIS_CHECK_IN" />\\n'
+                  '                <action android:name="android.intent.action.BOOT_COMPLETED" />\\n'
+                  '            </intent-filter>\\n'
+                  '        </receiver>\\n'
+                  '        <service\\n            android:name=".service.JarvisOverlayService')
 manifest.write_text(m)
 
 vm = root / "app/src/main/java/com/example/viewmodel/JarvisViewModel.kt"
