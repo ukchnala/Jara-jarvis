@@ -94,7 +94,8 @@ new = '''            val localResult = JarvisIntelligence.interpret(input, conte
             var reply = localResult.spokenResponse
             var summary = localResult.actionLog
             var actionsToExecute: List<JarvisAction> = listOf(localResult.action)
-            if (localResult.action is JarvisAction.Conversational && JarvisAiBackend.isConfigured(context)) {
+            val hasMultipleSteps = listOf(" aur ", " phir ", " uske baad ", " then ", " and then ", " after that ").any { (" " + input.lowercase() + " ").contains(it) } || input.contains(",")
+            if ((localResult.action is JarvisAction.Conversational || hasMultipleSteps) && JarvisAiBackend.isConfigured(context)) {
                 val ai = JarvisAiBackend.ask(context, input, _phoneControlEnabled.value, _installedApps.value.map { it.label })
                 if (ai != null) {
                     reply = ai.reply.ifBlank { "Ji sir, maine aapki request samajh li." }
