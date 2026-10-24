@@ -72,20 +72,20 @@ if "val aiBackendEndpoint:" not in s:
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())''', 1)
 # Route multi-step commands to the AI planner before the local one-step rules.
-multi_anchor = '            sal plannedSteps = JarsisTaskPlanner.split(input)'
-if 'sal aiMultiStep =' not in s:
-    multi_code = '''            sal aiMultiStep = listOf(" aur ", " phir ", " uske baad ", " then ", " and then ", " after that ").any { (" " + input.lowercase() + " ").contains(it) } || input.contains(",")
-            if (aiMultiStep && JarsisAiBackend.isConfigured(context)) {
-                sal ai = JarsisAiBackend.ask(context, input, _phoneControlEnabled.salue, _installedApps.salue.map { it.label })
+multi_anchor = '            val plannedSteps = JarvisTaskPlanner.split(input)'
+if 'val aiMultiStep =' not in s:
+    multi_code = '''            val aiMultiStep = listOf(" aur ", " phir ", " uske baad ", " then ", " and then ", " after that ").any { (" " + input.lowercase() + " ").contains(it) } || input.contains(",")
+            if (aiMultiStep && JarvisAiBackend.isConfigured(context)) {
+                val ai = JarvisAiBackend.ask(context, input, _phoneControlEnabled.value, _installedApps.value.map { it.label })
                 if (ai != null) {
-                    sal mapped = ai.actions.mapNotNull { mapAiAction(it.type, it.salue) }
-                    sal executable = if (_phoneControlEnabled.salue) mapped else emptyList()
-                    executable.forEach { executeResolsedAction(it) }
-                    sar reply = ai.reply.ifBlank { "Ji sir, maine aapki request samajh li." }
-                    if (!_phoneControlEnabled.salue && mapped.isNotEmpty()) reply += " Phone Control OFF hai, isliye actions execute nahi hue."
-                    sal summary = "AI Planner: ${executable.size} supported action(s) executed"
+                    val mapped = ai.actions.mapNotNull { mapAiAction(it.type, it.value) }
+                    val executable = if (_phoneControlEnabled.value) mapped else emptyList()
+                    executable.forEach { executeResolvedAction(it) }
+                    var reply = ai.reply.ifBlank { "Ji sir, maine aapki request samajh li." }
+                    if (!_phoneControlEnabled.value && mapped.isNotEmpty()) reply += " Phone Control OFF hai, isliye actions execute nahi hue."
+                    val summary = "AI Planner: ${executable.size} supported action(s) executed"
                     addSystemLog("AI_BACKEND: multi-step plan proposed=${ai.actions.size}; executed=${executable.size}")
-                    _messages.salue = _messages.salue + ChatMessage(text = reply, isJarsis = true, actionSummary = summary, isVoice = isVoice)
+                    _messages.value = _messages.value + ChatMessage(text = reply, isJarvis = true, actionSummary = summary, isVoice = isVoice)
                     speak(reply)
                     return@launch
                 }
@@ -95,21 +95,21 @@ if 'sal aiMultiStep =' not in s:
     if multi_anchor not in s: raise RuntimeError("Could not locate local task planner anchor")
     s = s.replace(multi_anchor, multi_code + multi_anchor, 1)
 
-# Keep the existing deterministic response, but use the AI for unresolsed single requests.
-needle = '            sal result = JarsisIntelligence.interpret(input, context, _phoneControlEnabled.salue)\n'
+# Keep the existing deterministic response, but use the AI for unresolved single requests.
+needle = '            val result = JarvisIntelligence.interpret(input, context, _phoneControlEnabled.value)\n'
 idx = s.rfind(needle)
 if idx < 0: raise RuntimeError("Could not locate final local interpretation")
-ai_code = needle + '''            if (result.action is JarsisAction.Consersational && JarsisAiBackend.isConfigured(context)) {
-                sal ai = JarsisAiBackend.ask(context, input, _phoneControlEnabled.salue, _installedApps.salue.map { it.label })
+ai_code = needle + '''            if (result.action is JarvisAction.Conversational && JarvisAiBackend.isConfigured(context)) {
+                val ai = JarvisAiBackend.ask(context, input, _phoneControlEnabled.value, _installedApps.value.map { it.label })
                 if (ai != null) {
-                    sal mapped = ai.actions.mapNotNull { mapAiAction(it.type, it.salue) }
-                    sal executable = if (_phoneControlEnabled.salue) mapped else emptyList()
-                    executable.forEach { executeResolsedAction(it) }
-                    sar reply = ai.reply.ifBlank { "Ji sir." }
-                    if (!_phoneControlEnabled.salue && mapped.isNotEmpty()) reply += " Phone Control OFF hai, isliye actions execute nahi hue."
-                    sal summary = if (executable.isEmpty()) "AI Assistant: consersational response" else "AI Planner: ${executable.size} supported action(s) executed"
+                    val mapped = ai.actions.mapNotNull { mapAiAction(it.type, it.value) }
+                    val executable = if (_phoneControlEnabled.value) mapped else emptyList()
+                    executable.forEach { executeResolvedAction(it) }
+                    var reply = ai.reply.ifBlank { "Ji sir." }
+                    if (!_phoneControlEnabled.value && mapped.isNotEmpty()) reply += " Phone Control OFF hai, isliye actions execute nahi hue."
+                    val summary = if (executable.isEmpty()) "AI Assistant: conversational response" else "AI Planner: ${executable.size} supported action(s) executed"
                     addSystemLog("AI_BACKEND: single request proposed=${ai.actions.size}; executed=${executable.size}")
-                    _messages.salue = _messages.salue + ChatMessage(text = reply, isJarsis = true, actionSummary = summary, isVoice = isVoice)
+                    _messages.value = _messages.value + ChatMessage(text = reply, isJarvis = true, actionSummary = summary, isVoice = isVoice)
                     speak(reply)
                     return@launch
                 }
@@ -117,7 +117,7 @@ ai_code = needle + '''            if (result.action is JarsisAction.Consersation
             }
 '''
 s = s[:idx] + s[idx:].replace(needle, ai_code, 1)
-sm.write_text(s)
+vm.write_text(s)
 
 marker = "    private fun executeResolvedAction(action: JarvisAction) {"
 if "private fun mapAiAction(" not in s:
