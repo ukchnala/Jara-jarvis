@@ -209,7 +209,7 @@ app.use(express.json({ limit: "32kb" }));
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.OPENAI_API_KEY;
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-app.get("/health", (_req, res) => res.json({ ok: true, service: "jarvis-ai-backend", configured: Boolean(API_KEY) }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "jarvis-ai-backend", configured: Boolean(API_KEY && CLIENT_TOKEN) }));
 app.post("/v1/jarvis", async (req, res) => {
   if (!API_KEY) return res.status(503).json({ error: "Backend owner must configure OPENAI_API_KEY." });
   const command = typeof req.body?.command === "string" ? req.body.command.trim().slice(0, 1500) : "";
@@ -259,7 +259,8 @@ t = t.replace('''    fun saveEndpoint(context: Context, value: String) {
         .getString(TOKEN_KEY, "")?.trim().orEmpty()
     fun saveEndpoint(context: Context, value: String, token: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(URL_KEY, value.trim().trimEnd('/')).putString(TOKEN_KEY, token.trim()).apply()
+            .putString(URL_KEY, value.trim().trimEnd('/'))
+            .putString(TOKEN_KEY, if (token.isBlank()) clientToken(context) else token.trim()).apply()
     }
     fun isConfigured(context: Context) = endpoint(context).startsWith("https://") && clientToken(context).length >= 24''')
 t = t.replace('.post(payload.toString().toRequestBody(jsonType)).header("Accept", "application/json").build()',
