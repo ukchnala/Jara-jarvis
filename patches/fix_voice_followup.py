@@ -107,8 +107,13 @@ if "waitingForWakeGreeting" not in s:
         // Speak first; VoiceManager opens the command microphone only after TTS finishes.
         voiceManager?.speak(greeting, "JARVIS_WAKE_ACK")
 """
-    if old not in s: raise Error("Could not find wake greeting delay in ViewModel")
-    s = s.replace(old, new, 1)
+    if old in s:
+        s = s.replace(old, new, 1)
+    else:
+        start = s.find("    fun onWakeWordActivated() {")
+        end = s.find("    fun triggerWakeWordTest()", start)
+        if start < 0 or end < 0: raise RuntimeError("Could not find wake handler in ViewModel")
+        s = s[:start] + new + "\\n\\n" + s[end:]
     old = """            // Speak reply in natural Hindi, then restore the wake-word listener.
             speak(result.spokenResponse)
             if (isVoice && _isBackgroundListeningEnabled.value) {
@@ -128,8 +133,13 @@ if "waitingForWakeGreeting" not in s:
                 if (_isBackgroundListeningEnabled.value) JarvisBackgroundService.resumeListening(context)
             }
 """
-    if old not in s: raise Error("Could not find command reply timer in ViewModel")
-    s = s.replace(old, new, 1)
+    if old in s:
+        s = s.replace(old, new, 1)
+    else:
+        start = s.find("            // Speak reply in natural Hindi, then restore the wake-word listener.")
+        end = s.find("\\n        }\\n    }\\n\\n    private fun executeResolvedAction", start)
+        if start < 0 or end < 0: raise RuntimeError("Could not find command reply section in ViewModel")
+        s = s[:start] + new + s[end:]
     # Persist up to 60 recent conversation messages across app restarts.
     marker = "    private fun executeResolvedAction(action: JarvisAction) {"
     persist = """    private fun persistConversation(messages: List<ChatMessage>) {
@@ -176,7 +186,7 @@ if "waitingForWakeGreeting" not in s:
         }
         viewModelScope.launch { _messages.collect { persistConversation(it) } }
 """
-    if old not in s: raise Error("Could not find initial welcome message")
+    if old not in s: raise RuntimeError("Could not find initial welcome message")
     s = s.replace(old, new, 1)
     vm.write_text(s)
 
