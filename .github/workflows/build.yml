@@ -26,6 +26,7 @@ jobs:
           python3 patches/fix_voice_followup.py work
           python3 patches/add_agent_features.py work
           python3 patches/add_ai_backend.py work
+          python3 patches/fix_ai_backend_token.py
       - name: Make debug keystore
         working-directory: work
         run: keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
