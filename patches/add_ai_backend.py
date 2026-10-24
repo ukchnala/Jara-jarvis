@@ -204,14 +204,21 @@ backend = root / "backend"
 backend.mkdir(exist_ok=True)
 (backend / "package.json").write_text('''{"name":"jarvis-ai-backend","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.js"},"engines":{"node":">=20"},"dependencies":{"express":"^4.21.2"}}\n''')
 (backend / "server.js").write_text(r'''import express from "express";
+import { timingSafeEqual } from "node:crypto";
 const app = express();
 app.use(express.json({ limit: "32kb" }));
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.OPENAI_API_KEY;
+const CLIENT_TOKEN = process.env.JARVIS_CLIENT_TOKEN;
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 app.get("/health", (_req, res) => res.json({ ok: true, service: "jarvis-ai-backend", configured: Boolean(API_KEY && CLIENT_TOKEN) }));
 app.post("/v1/jarvis", async (req, res) => {
-  if (!API_KEY) return res.status(503).json({ error: "Backend owner must configure OPENAI_API_KEY." });
+  if (!API_KEY || !CLIENT_TOKEN) return res.status(503).json({ error: "Backend owner must configure OPENAI_API_KEY and JARVIS_CLIENT_TOKEN." });
+  const supplied = String(req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+  const suppliedBytes = Buffer.from(supplied);
+  const expectedBytes = Buffer.from(CLIENT_TOKEN);
+  if (suppliedBytes.length !== expectedBytes.length || !timingSafeEqual(suppliedBytes, expectedBytes))
+    return res.status(401).json({ error: "Unauthorized client." });
   const command = typeof req.body?.command === "string" ? req.body.command.trim().slice(0, 1500) : "";
   const phoneControlEnabled = req.body?.phoneControlEnabled === true;
   const apps = Array.isArray(req.body?.apps) ? req.body.apps.filter(x => typeof x === "string").slice(0, 250) : [];
