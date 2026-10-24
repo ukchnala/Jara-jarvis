@@ -14,7 +14,7 @@ s = s.replace('''    fun saveEndpoint(context: Context, value: String) {
     }
     fun isConfigured(context: Context) = endpoint(context).startsWith("https://")''',
 '''    fun clientToken(context: Context): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        .getString(TOKEN_KEY, "")?.trim().orEmpty()
+        .getString(TOKEN_KEY, "4b785f8e8c93c9840a5e453046928b17520016dc8292317b")?.trim().orEmpty()
     fun saveEndpoint(context: Context, value: String, token: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(URL_KEY, value.trim().trimEnd('/'))
