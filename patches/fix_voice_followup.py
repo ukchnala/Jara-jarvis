@@ -113,7 +113,7 @@ if "waitingForWakeGreeting" not in s:
         start = s.find("    fun onWakeWordActivated() {")
         end = s.find("    fun triggerWakeWordTest()", start)
         if start < 0 or end < 0: raise RuntimeError("Could not find wake handler in ViewModel")
-        s = s[:start] + new + "\\n\\n" + s[end:]
+        s = s[:start] + new + "\n\n" + s[end:]
     old = """            // Speak reply in natural Hindi, then restore the wake-word listener.
             speak(result.spokenResponse)
             if (isVoice && _isBackgroundListeningEnabled.value) {
@@ -137,7 +137,7 @@ if "waitingForWakeGreeting" not in s:
         s = s.replace(old, new, 1)
     else:
         start = s.find("            // Speak reply in natural Hindi, then restore the wake-word listener.")
-        end = s.find("\\n        }\\n    }\\n\\n    private fun executeResolvedAction", start)
+        end = s.find("\n        }\n    }\n\n    private fun executeResolvedAction", start)
         if start < 0 or end < 0: raise RuntimeError("Could not find command reply section in ViewModel")
         s = s[:start] + new + s[end:]
     # Persist up to 60 recent conversation messages across app restarts.
