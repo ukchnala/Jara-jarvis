@@ -416,3 +416,55 @@ s = s.replace("""    private fun loadConversation(): List<ChatMessage> = try {
     }
 """)
 vm.write_text(s)
+
+
+# Small, explicit, on-device fact memory and additional everyday Hindi conversation.
+intel = root / "app/src/main/java/com/example/util/JarvisIntelligence.kt"
+s = intel.read_text()
+marker = "        // 1. Phone Control Master Switch Commands"
+if "JARVIS_LOCAL_FACT_MEMORY" not in s:
+    block = """        // JARVIS_LOCAL_FACT_MEMORY: only save facts the user explicitly asks Jarvis to remember.
+        val memoryPrefs = context.getSharedPreferences("jarvis_local_memory", Context.MODE_PRIVATE)
+        if (query.startsWith("yaad rakhna") || query.startsWith("yaad rakh lo") ||
+            query.startsWith("remember that") || query.startsWith("remember this")) {
+            val fact = when {
+                query.startsWith("yaad rakhna") -> input.substringAfter("yaad rakhna", "").trim()
+                query.startsWith("yaad rakh lo") -> input.substringAfter("yaad rakh lo", "").trim()
+                query.startsWith("remember that") -> input.substringAfter("remember that", "").trim()
+                else -> input.substringAfter("remember this", "").trim()
+            }
+            if (fact.isNotBlank()) {
+                val saved = try { org.json.JSONArray(memoryPrefs.getString("facts", "[]")) } catch (_: Exception) { org.json.JSONArray() }
+                saved.put(fact)
+                while (saved.length() > 30) saved.remove(0)
+                memoryPrefs.edit().putString("facts", saved.toString()).apply()
+                val reply = "Theek hai sir, main is baat ko apni local memory mein yaad rakhunga: $fact"
+                return InterpretationResult(JarvisAction.Conversational(reply), reply, "Memory: Explicit fact saved locally")
+            }
+        }
+        if (query.contains("kya yaad hai") || query.contains("meri baatein yaad") ||
+            query.contains("what do you remember") || query.contains("memory mein kya")) {
+            val saved = try { org.json.JSONArray(memoryPrefs.getString("facts", "[]")) } catch (_: Exception) { org.json.JSONArray() }
+            val facts = (0 until saved.length()).map { saved.optString(it) }.filter { it.isNotBlank() }
+            val reply = if (facts.isEmpty()) {
+                "Sir, abhi aapne mujhe koi baat specially yaad rakhne ko nahi kahi. Aap keh sakte hain: yaad rakhna, mujhe gaming pasand hai."
+            } else {
+                "Sir, meri local memory mein ye baatein hain: " + facts.takeLast(8).joinToString(". ")
+            }
+            return InterpretationResult(JarvisAction.Conversational(reply), reply, "Memory: Explicit facts recalled")
+        }
+        if (query.contains("khana khaya") || query.contains("khaana khaya") ||
+            query.contains("have you eaten") || query.contains("did you eat")) {
+            val reply = "Sir, main AI hoon, isliye khana nahi khata. Aapne khana kha liya? Sab theek chal raha hai?"
+            return InterpretationResult(JarvisAction.Conversational(reply), reply, "Dialogue: Everyday conversation")
+        }
+        if (query.contains("main udaas hoon") || query.contains("mood kharab") ||
+            query.contains("i feel sad") || query.contains("pareshan hoon")) {
+            val reply = "Mujhe afsos hai sir ki aap pareshan mehsoos kar rahe hain. Agar aap batana chahein to main sun sakta hoon—kya hua?"
+            return InterpretationResult(JarvisAction.Conversational(reply), reply, "Dialogue: Supportive conversation")
+        }
+
+"""
+    if marker not in s: raise RuntimeError("Could not find intelligence insertion point")
+    s = s.replace(marker, block + marker, 1)
+    intel.write_text(s)
