@@ -74,7 +74,7 @@ if "val aiBackendEndpoint:" not in s:
 # Route multi-step commands to the AI planner before the local one-step rules.
 multi_anchor = '            val plannedSteps = JarvisTaskPlanner.split(input)'
 if 'val aiMultiStep =' not in s:
-    multi_code = '''            val aiMultiStep = listOf(" aur ", " phir ", " uske baad ", " then ", " and then ", " after that ").any { (" " + input.lowercase() + " ").contains(it) } || input.contains(",")
+    multi_code = '''            val aiMultiStep = Regex("\\b(aur|or|orr|phir|fir|then|and then|uske baad|after that)\\b", RegexOption.IGNORE_CASE).containsMatchIn(input) || input.contains(",")
             if (aiMultiStep && JarvisAiBackend.isConfigured(context)) {
                 val ai = JarvisAiBackend.ask(context, input, _phoneControlEnabled.value, _installedApps.value.map { it.label })
                 if (ai != null) {
