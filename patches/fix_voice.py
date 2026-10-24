@@ -45,11 +45,6 @@ class MainActivity : ComponentActivity() {
         handleWakeIntent(intent)
     }
 
-    override fun onStart() {
-        super.onStart()
-        if (JarvisBackgroundService.isRunning.value) JarvisBackgroundService.pauseListening(this)
-    }
-
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations && JarvisBackgroundService.isRunning.value) JarvisBackgroundService.resumeListening(this)
@@ -238,5 +233,33 @@ addition = """    fun onWakeWordActivated() {
 if needle not in v:
     raise SystemExit("Could not find ViewModel insertion point")
 v = v.replace(needle, addition + needle, 1)
+v = v.replace("""    fun startListening() {
+        voiceManager?.startListening()
+    }
+
+    fun stopListening() {
+        voiceManager?.stopListening()
+    }
+""", """    fun startListening() {
+        if (_isBackgroundListeningEnabled.value) JarvisBackgroundService.pauseListening(context)
+        voiceManager?.startListening()
+    }
+
+    fun stopListening() {
+        voiceManager?.stopListening()
+        if (_isBackgroundListeningEnabled.value) JarvisBackgroundService.resumeListening(context)
+    }
+""")
+v = v.replace("""            // Speak reply in natural Hindi
+            speak(result.spokenResponse)
+""", """            // Speak reply in natural Hindi, then restore the wake-word listener.
+            speak(result.spokenResponse)
+            if (isVoice && _isBackgroundListeningEnabled.value) {
+                viewModelScope.launch {
+                    delay(5000)
+                    JarvisBackgroundService.resumeListening(context)
+                }
+            }
+""")
 vm.write_text(v)
 print("Applied Jarvis voice/wake-word fixes to extracted original project.")
