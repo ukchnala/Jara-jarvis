@@ -21,6 +21,7 @@ jobs:
         run: |
           mkdir work
           unzip -q jarvis-ai.zip -d work
+          python3 patches/fix_voice.py work
       - name: Make debug keystore
         working-directory: work
         run: keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
