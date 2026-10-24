@@ -78,9 +78,9 @@ class MainActivity : ComponentActivity() {
 
 svc = root / "app/src/main/java/com/example/service/JarvisBackgroundService.kt"
 s = svc.read_text()
-s = s.replace("import android.app.Service\\n", "import android.app.Service\\nimport android.Manifest\\nimport android.content.pm.PackageManager\\n")
-s = s.replace("import androidx.core.app.NotificationCompat\\n", "import androidx.core.app.NotificationCompat\\nimport androidx.core.content.ContextCompat\\n")
-s = s.replace("    private var isAudioThreadRunning = false\\n    private var lastWakeTriggerTime = 0L\\n", "    private var isAudioThreadRunning = false\\n    private var isRecognitionActive = false\\n    private var isRecognitionPaused = false\\n    private var lastWakeTriggerTime = 0L\\n")
+s = s.replace("import android.app.Service\n", "import android.app.Service\nimport android.Manifest\nimport android.content.pm.PackageManager\n")
+s = s.replace("import androidx.core.app.NotificationCompat\n", "import androidx.core.app.NotificationCompat\nimport androidx.core.content.ContextCompat\n")
+s = s.replace("    private var isAudioThreadRunning = false\n    private var lastWakeTriggerTime = 0L\n", "    private var isAudioThreadRunning = false\n    private var isRecognitionActive = false\n    private var isRecognitionPaused = false\n    private var lastWakeTriggerTime = 0L\n")
 s = s.replace("""        super.onCreate()
         _isRunning.value = true
         createNotificationChannel()
@@ -143,7 +143,7 @@ s = s.replace("""                val intent = Intent(RecognizerIntent.ACTION_REC
                 speechRecognizer?.startListening(intent)
                 isRecognitionActive = true
 """)
-s = s.replace("            if (_isRunning.value) {\\n                startRecognitionCycle()\\n            }", "            if (_isRunning.value && !isRecognitionPaused) {\\n                startRecognitionCycle()\\n            }")
+s = s.replace("            if (_isRunning.value) {\n                startRecognitionCycle()\n            }", "            if (_isRunning.value && !isRecognitionPaused) {\n                startRecognitionCycle()\n            }")
 s = s.replace('''            "jarvis",
             "jarvish",
 ''', '''            "jarvis",
