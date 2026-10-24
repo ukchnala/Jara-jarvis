@@ -71,51 +71,54 @@ if "val aiBackendEndpoint:" not in s:
     }
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())''', 1)
-old = '''            val result = JarvisIntelligence.interpret(input, context, _phoneControlEnabled.value)
-
-            // Add action log
-            addSystemLog("EXEC: ${result.actionLog}")
-
-            // Execute the resolved action
-            executeResolvedAction(result.action)
-
-            // Add Jarvis response
-            _messages.value = _messages.value + ChatMessage(
-                text = result.spokenResponse,
-                isJarvis = true,
-                actionSummary = result.actionLog,
-                isVoice = isVoice
-            )
-
-            // Speak reply in natural Hindi
-            speak(result.spokenResponse)
-'''
-new = '''            val localResult = JarvisIntelligence.interpret(input, context, _phoneControlEnabled.value)
-            var reply = localResult.spokenResponse
-            var summary = localResult.actionLog
-            var actionsToExecute: List<JarvisAction> = listOf(localResult.action)
-            val hasMultipleSteps = listOf(" aur ", " phir ", " uske baad ", " then ", " and then ", " after that ").any { (" " + input.lowercase() + " ").contains(it) } || input.contains(",")
-            if ((localResult.action is JarvisAction.Conversational || hasMultipleSteps) && JarvisAiBackend.isConfigured(context)) {
+# Route multi-step commands to the AI planner before the local one-step rules.
+multi_anchor = '            val plannedSteps = JarvisTaskPlanner.split(input)'
+if 'val aiMultiStep =' not in v:
+    multi_code = '''            val aiMultiStep = listOf(" aur ", " phir ", " uske baad ", " then ", " and then ", " after that ").any { (" " + input.lowercase() + " ").contains(it) } || input.contains(",")
+            if (aiMultiStep && JarvisAiBackend.isConfigured(context)) {
                 val ai = JarvisAiBackend.ask(context, input, _phoneControlEnabled.value, _installedApps.value.map { it.label })
                 if (ai != null) {
-                    reply = ai.reply.ifBlank { "Ji sir, maine aapki request samajh li." }
                     val mapped = ai.actions.mapNotNull { mapAiAction(it.type, it.value) }
-                    actionsToExecute = if (_phoneControlEnabled.value) mapped else emptyList()
-                    summary = if (mapped.isEmpty()) "AI Assistant: conversational response" else
-                        if (_phoneControlEnabled.value) "AI Planner: ${mapped.size} supported action(s)" else
-                        "AI Planner: phone control OFF; actions not executed"
-                    if (!_phoneControlEnabled.value && mapped.isNotEmpty())
-                        reply += " Phone Control abhi OFF hai, isliye maine phone par koi action execute nahi kiya."
-                    addSystemLog("AI_BACKEND: response received; proposed=${ai.actions.size}; executable=${actionsToExecute.size}")
-                } else addSystemLog("AI_BACKEND: request failed; local response used")
+                    val executable = if (_phoneControlEnabled.value) mapped else emptyList()
+                    executable.forEach { executeResolvedAction(it) }
+                    var reply = ai.reply.ifBlank { "Ji sir, maine aapki request samajh li." }
+                    if (!_phoneControlEnabled.value && mapped.isNotEmpty()) reply += " Phone Control OFF hai, isliye actions execute nahi hue."
+                    val summary = "AI Planner: ${executable.size} supported action(s) executed"
+                    addSystemLog("AI_BACKEND: multi-step plan proposed=${ai.actions.size}; executed=${executable.size}")
+                    _messages.value = _messages.value + ChatMessage(text = reply, isJarvis = true, actionSummary = summary, isVoice = isVoice)
+                    speak(reply)
+                    return@launch
+                }
+                addSystemLog("AI_BACKEND: multi-step request failed; local planner fallback")
             }
-            addSystemLog("EXEC: $summary")
-            actionsToExecute.forEach { executeResolvedAction(it) }
-            _messages.value = _messages.value + ChatMessage(text = reply, isJarvis = true, actionSummary = summary, isVoice = isVoice)
-            speak(reply)
 '''
-if old not in s: raise RuntimeError("ViewModel command-loop anchor not found")
-s = s.replace(old, new, 1)
+    if multi_anchor not in v: raise RuntimeError("Could not locate local task planner anchor")
+    v = v.replace(multi_anchor, multi_code + multi_anchor, 1)
+
+# Keep the existing deterministic response, but use the AI for unresolved single requests.
+needle = '            val result = JarvisIntelligence.interpret(input, context, _phoneControlEnabled.value)\n'
+idx = v.rfind(needle)
+if idx < 0: raise RuntimeError("Could not locate final local interpretation")
+ai_code = needle + '''            if (result.action is JarvisAction.Conversational && JarvisAiBackend.isConfigured(context)) {
+                val ai = JarvisAiBackend.ask(context, input, _phoneControlEnabled.value, _installedApps.value.map { it.label })
+                if (ai != null) {
+                    val mapped = ai.actions.mapNotNull { mapAiAction(it.type, it.value) }
+                    val executable = if (_phoneControlEnabled.value) mapped else emptyList()
+                    executable.forEach { executeResolvedAction(it) }
+                    var reply = ai.reply.ifBlank { "Ji sir." }
+                    if (!_phoneControlEnabled.value && mapped.isNotEmpty()) reply += " Phone Control OFF hai, isliye actions execute nahi hue."
+                    val summary = if (executable.isEmpty()) "AI Assistant: conversational response" else "AI Planner: ${executable.size} supported action(s) executed"
+                    addSystemLog("AI_BACKEND: single request proposed=${ai.actions.size}; executed=${executable.size}")
+                    _messages.value = _messages.value + ChatMessage(text = reply, isJarvis = true, actionSummary = summary, isVoice = isVoice)
+                    speak(reply)
+                    return@launch
+                }
+                addSystemLog("AI_BACKEND: request failed; local response used")
+            }
+'''
+v = v[:idx] + v[idx:].replace(needle, ai_code, 1)
+vm.write_text(v)
+
 marker = "    private fun executeResolvedAction(action: JarvisAction) {"
 if "private fun mapAiAction(" not in s:
     mapper = '''    private fun mapAiAction(type: String, value: String): JarvisAction? = when (type) {
