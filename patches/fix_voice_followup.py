@@ -360,3 +360,39 @@ if "requestOverlayPermissionOnce" not in s:
     s = s.replace(anchor, method + anchor, 1)
 main.write_text(s)
 print("Applied global green edge overlay, speech-sequenced command listening, conversational TTS tuning and saved recent chat history.")
+
+
+# Kotlin compatibility touch-ups for the generated additions.
+vm = root / "app/src/main/java/com/example/viewmodel/JarvisViewModel.kt"
+s = vm.read_text()
+if "import com.example.service.JarvisOverlayService" not in s:
+    s = s.replace("import com.example.service.JarvisBackgroundService\n",
+                  "import com.example.service.JarvisBackgroundService\nimport com.example.service.JarvisOverlayService\n", 1)
+s = s.replace("""    private fun loadConversation(): List<ChatMessage> = try {
+        val raw = context.getSharedPreferences("jarvis_local_memory", android.content.Context.MODE_PRIVATE)
+            .getString("conversation", null) ?: return emptyList()
+        val a = org.json.JSONArray(raw)
+        (0 until a.length()).map { i ->
+            val m = a.getJSONObject(i)
+            ChatMessage(text = m.optString("text"), isJarvis = m.optBoolean("isJarvis"),
+                timestamp = m.optLong("timestamp", System.currentTimeMillis()),
+                actionSummary = m.optString("actionSummary").takeIf { it.isNotBlank() },
+                isVoice = m.optBoolean("isVoice"))
+        }
+    } catch (_: Exception) { emptyList() }
+""", """    private fun loadConversation(): List<ChatMessage> {
+        return try {
+            val raw = context.getSharedPreferences("jarvis_local_memory", android.content.Context.MODE_PRIVATE)
+                .getString("conversation", null) ?: return emptyList()
+            val a = org.json.JSONArray(raw)
+            (0 until a.length()).map { i ->
+                val m = a.getJSONObject(i)
+                ChatMessage(text = m.optString("text"), isJarvis = m.optBoolean("isJarvis"),
+                    timestamp = m.optLong("timestamp", System.currentTimeMillis()),
+                    actionSummary = m.optString("actionSummary").takeIf { it.isNotBlank() },
+                    isVoice = m.optBoolean("isVoice"))
+            }
+        } catch (_: Exception) { emptyList() }
+    }
+""")
+vm.write_text(s)
