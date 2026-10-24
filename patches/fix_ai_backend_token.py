@@ -6,6 +6,7 @@ root = Path("work")
 # JARVIS_CLIENT_TOKEN. Add a token field and send it as Bearer authorization.
 client = root / "app/src/main/java/com/example/util/JarvisAiBackend.kt"
 s = client.read_text()
+s = s.replace('.getString(URL_KEY, "")?.trim().orEmpty()', '.getString(URL_KEY, "https://jarvis-ai-backend-8mzs.onrender.com")?.trim().orEmpty()')
 s = s.replace('    private const val URL_KEY = "endpoint_url"\n',
               '    private const val URL_KEY = "endpoint_url"\n    private const val TOKEN_KEY = "client_token"\n')
 s = s.replace('''    fun saveEndpoint(context: Context, value: String) {
